@@ -1,7 +1,7 @@
 //current types
-let tDirectory="directory"
-let tJournal="journal"
-let tEntry="entry"
+let tDirectory="directory";
+let tJournal="journal";
+let tEntry="entry";
 
 //some documentation
 /*
@@ -10,6 +10,8 @@ Properties:
 - title: The title of the thought
 - children: An array of child thoughts (only for layers)
 - content: The content of the thought (only for entries) 
+- attachment: The central attachment (supports: null, img, audio, iframe) (only for entries)
+- attachmentSrc: The source URL for the attachment (only for entries)
 */
 
 let THOUGHTS={
@@ -23,7 +25,14 @@ let THOUGHTS={
                 {
                     type:tEntry,
                     title:"First Entry",
-                    content:"Today I started my journal."
+                    content:"Today I started my journal.",
+                    attachment:"iframe",
+                    attachmentSrc:""
+                },
+                {
+                    type:tEntry,
+                    title:"Second Entry",
+                    content:"I am enjoying writing in my journal."
                 }
             ]
         }
