@@ -1,7 +1,21 @@
+"use strict"
+
 let currentLocation=[];
 let currentEntry=0;
 
+let KEYS=[];
 
+let EDITABLE=true; //editable
+//template stuff
+let templateEntry={type:tEntry,title:"New Entry",content:"Write text here..."}
+
+function buildLayer(){
+    let displayLayer=THOUGHTS;
+    for(let i=0;i<currentLocation.length;i++){
+        displayLayer=displayLayer.children[currentLocation[i]]; //navigate to the current layer
+    }
+    return displayLayer;
+}
 
 function relocate(location){
     currentLocation=location;
@@ -28,23 +42,29 @@ function fitHtmlObject(thing,allTime=false){//fit padding object to window heigh
     
 }
 function buildHtml(){
-    body=document.querySelector("body");
+    let body=document.querySelector("body");
     body.innerHTML="";
 
     //first create central div
-    centralDiv=document.createElement("div");
+    let centralDiv=document.createElement("div");
     centralDiv.id="centralDiv";
     body.appendChild(centralDiv);
 
+    //build menubar
+    let menuBar=document.createElement("div");
+    menuBar.id="menuBar";
+    menuBar.className="topBars";
+    centralDiv.appendChild(menuBar);
 
     //build top bar
-    topBar=document.createElement("p");
+    let topBar=document.createElement("p");
     topBar.id="topBar";
+    topBar.className="topBars"
     centralDiv.appendChild(topBar);
     centralDiv.appendChild(document.createElement("hr"));
 
     //build content region
-    contentRegion=document.createElement("div");
+    let contentRegion=document.createElement("div");
     contentRegion.id="contentRegion";
     centralDiv.appendChild(contentRegion);
     
@@ -59,8 +79,8 @@ function htmlDisplay(){
     for(let i=-1; i<currentLocation.length; i++){//-1 to include root  
         tempTopBarLink=document.createElement("a");
         tempTopBarLink.textContent=tempLayer.title;//take the layer title
-        tempTopBarLink.href="#";
-        tempTopBarLink.onclick=function(){
+        tempTopBarLink.onclick=function(ev){
+            ev.preventDefault()//prevent link
             relocate(currentLocation.slice(0,i+1));//relocate to this layer
         }
         topBar.appendChild(tempTopBarLink);
@@ -72,14 +92,11 @@ function htmlDisplay(){
     }
 
     //now build up the rest of the page
-    let displayLayer=THOUGHTS;
+    
     let contentRegion=document.getElementById("contentRegion");
     contentRegion.innerHTML=""; //clear it first
 
-    
-    for(let i=0;i<currentLocation.length;i++){
-        displayLayer=displayLayer.children[currentLocation[i]]; //navigate to the current layer
-    }
+    let displayLayer=buildLayer();
 
     if(displayLayer.type==tDirectory){
         directorySetup(displayLayer)
@@ -88,6 +105,86 @@ function htmlDisplay(){
         journalSetup(displayLayer)
     }
 }
+function replaceWithAttr(obj,obj2){
+    if(obj!=null){//guarantee object wasn't hidden or removed
+        
+        let attr=obj.attributes;
+
+        obj.replaceWith(obj2);
+
+        for(let i=0; i<attr.length; i++){
+            let tempItem=attr.item(i)
+            obj2.setAttribute(tempItem.name,tempItem.value)
+        }  
+        
+    }
+    
+
+}
+
+
+// replacing text with textarea or input
+function replaceInput(textObject, target, targetProp, multiline, type, refresh){
+    //how the parameters work
+    //textObject is the object being turned into an input
+    //target is the PART OF THOUGHTS STORAGE that is being altered as well
+    //targetProp is the name of the property of target being modified
+    //multiline is a boolean: true = <textarea>, false = <input>
+    //type is the type of the textObject: eg <p>, <h1>
+    //refresh is a boolean, true means that htmlDisplay() is re-run
+
+    if(EDITABLE && textObject.tagName!="textarea" && textObject.tagName!="input"){
+        let tempText=textObject.textContent;
+        let newObject;
+        if(multiline){
+            newObject=document.createElement("textarea")
+        }else{
+            newObject=document.createElement("input")
+        }
+        newObject.value=tempText
+        replaceWithAttr(textObject,newObject)
+
+        newObject.focus()
+        
+        newObject.addEventListener("keydown",function(ev){
+            if(KEYS.includes("Shift") || ev.key!="Enter"){
+
+            }else{
+                ev.preventDefault();
+                this.blur()//if not shift-enter, no new lines
+            }
+        })
+        
+
+        newObject.addEventListener("blur",function(){
+            inputToText(this,target,targetProp,multiline,type,refresh)
+        })
+        
+    }
+    
+}
+function inputToText(inputObject, target, targetProp, multiline, type, refresh){
+    
+    //no need to detect editable as it should always be saved
+
+
+    //target changing
+    target[targetProp]=inputObject.value;
+
+    let tempValue=inputObject.value;
+    let newObject=document.createElement(type)
+
+    newObject.textContent=tempValue
+    replaceWithAttr(inputObject,newObject)
+    newObject.addEventListener("dblclick",function(){
+        replaceInput(this,target,targetProp,multiline,type,refresh)
+    })
+    //finally, if refresh is needed, refresh everything
+    if(refresh)htmlDisplay()
+    
+    
+}
+
 function directorySetup(displayLayer){
     let directoryRegion=document.createElement("div");
     let contentRegion=document.getElementById("contentRegion");
@@ -97,9 +194,35 @@ function directorySetup(displayLayer){
     //display children
     for(let i=0;i<displayLayer.children.length;i++){
         let label=document.createElement("a");
-        label.textContent=displayLayer.children[i].title;
-        label.href="#";
-        label.onclick=function(){
+
+        //adding icon
+        let tempIcon=document.createElement("span")
+        tempIcon.classList.add("material-symbols-outlined")
+        if(displayLayer.children[i].type==tDirectory){
+            if(displayLayer.children[i].children.length==0){
+                tempIcon.textContent="folder_off"
+            }else{
+                tempIcon.textContent="folder"
+            }
+        }else if(displayLayer.children[i].type==tJournal){
+            if(displayLayer.children[i].children.length==0){
+                tempIcon.textContent="import_contacts"
+            }else{
+                tempIcon.textContent="menu_book"
+            }
+        }
+        
+        label.appendChild(tempIcon);
+
+        label.appendChild(document.createTextNode(displayLayer.children[i].title));
+        if(displayLayer.children[i].children.length==0){
+            let tempRedText=document.createElement("span");
+            tempRedText.textContent=" (empty)"
+            tempRedText.classList.add("redWarn");
+            label.appendChild(tempRedText);
+        }
+        label.onclick=function(ev){
+            ev.preventDefault()
             currentLocation.push(i);
             relocate(currentLocation);//relocation to this layer
         }
@@ -111,6 +234,30 @@ function directorySetup(displayLayer){
     fitHtmlObject(directoryRegion);
     
 }
+
+function newJournalEntry(displayBar,name,i,specialFunc=null,specialSymbol=null){
+    let entryLabel=document.createElement("a");
+    if(specialSymbol!=null){
+        let tempSymbol=document.createElement("span")
+        tempSymbol.textContent=specialSymbol
+        tempSymbol.classList.add("material-symbols-outlined")
+        entryLabel.appendChild(tempSymbol)
+    }
+    entryLabel.appendChild(document.createTextNode(name))
+    entryLabel.classList.add("journalMenuEntry");
+    if(specialFunc!=null){
+        entryLabel.onclick=specialFunc
+    }else{
+        entryLabel.onclick=function(ev){
+            ev.preventDefault()
+            currentEntry=i;
+            journalDisplay(journalRegion);
+        }
+    }
+    
+    displayBar.appendChild(entryLabel);
+}
+
 function journalSetup(displayLayer){
     let journalRegion=document.createElement("div");
     let contentRegion=document.getElementById("contentRegion");
@@ -125,17 +272,16 @@ function journalSetup(displayLayer){
     fitHtmlObject(leftBar);
     //populate left bar
     for(let i=0;i<displayLayer.children.length;i++){
-        
-        let entryLabel=document.createElement("a");
-        entryLabel.textContent=displayLayer.children[i].title;
-        entryLabel.href="#";
-        entryLabel.classList.add("journalMenuEntry");
-        entryLabel.onclick=function(){
-            currentEntry=i;
-            journalDisplay(journalRegion);
-        }
-        leftBar.appendChild(entryLabel);
+        newJournalEntry(leftBar,displayLayer.children[i].title,i)
     }
+    if(EDITABLE){
+        newJournalEntry(leftBar,"New Journal Entry",displayLayer.children.length,function(){
+            displayLayer.children.push({...templateEntry})
+            //now regenerate
+            htmlDisplay()
+        },"add")
+    }
+    
 
     //once left bar is done, make central and right bars
     let centerBar=document.createElement("div");
@@ -176,9 +322,18 @@ function journalDisplay(journalRegion){
     let entryTitle=document.createElement("h1");
     entryTitle.textContent=displayLayer.children[currentEntry].title;
     rightBar.appendChild(entryTitle);
-    entryContent=document.createElement("p");
+    let entryContent=document.createElement("p");
     entryContent.textContent=displayLayer.children[currentEntry].content;
     rightBar.appendChild(entryContent);
+
+    //entry content editing
+    entryContent.addEventListener("dblclick",function(){
+        replaceInput(entryContent,displayLayer.children[currentEntry],"content",true,"p",false);  
+    })
+    //title editing
+    entryTitle.addEventListener("dblclick",function(){
+        replaceInput(entryTitle,displayLayer.children[currentEntry],"title",false,"h1",true);
+    })
     
     //now give them css
     entryTitle.classList.add("journalEntryTitle");
@@ -235,3 +390,33 @@ window.onresize=function(){
         }
     }
 }
+
+document.addEventListener("keydown",function(event){
+    if(event.key=="ArrowUp" || event.key=="ArrowDown"){
+        let displayLayer=buildLayer();
+        if(displayLayer.type==tJournal){
+            if(event.key=="ArrowUp"){
+                if(currentEntry>0){
+                    currentEntry--;
+                }else{
+                    currentEntry=displayLayer.children.length-1; //wrap around to last
+                }
+            }else if(event.key=="ArrowDown"){
+                if(currentEntry<displayLayer.children.length-1){
+                    currentEntry++;
+                }else{
+                    currentEntry=0; //wrap around to first
+                }
+            }
+            journalDisplay(document.getElementById("journalRegion"));
+        }
+    }
+    KEYS.push(event.key)
+})
+document.addEventListener("keyup",function(event){
+    for(let i=KEYS.length-1; i>=0; i--){
+        if(KEYS[i]==event.key){
+            KEYS.splice(i,1);
+        }
+    }
+})
