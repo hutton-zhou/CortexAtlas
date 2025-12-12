@@ -1,5 +1,11 @@
 "use strict"
 
+//first load over any saved data
+
+if(localStorage.getItem("data")!=null){
+    THOUGHTS=JSON.parse(localStorage.getItem("data"));
+}
+
 let currentLocation=[];
 let currentEntry=0;
 
@@ -7,7 +13,9 @@ let KEYS=[];
 
 let EDITABLE=true; //editable
 //template stuff
-let templateEntry={type:tEntry,title:"New Entry",content:"Write text here..."}
+let templateEntry={type:tEntry,title:"New Entry",content:"Write text here..."};
+let templateJournal={type:tJournal,title:"New Journal",children:[]};
+let templateDirectory={type:tDirectory,title:"New Directory",children:[]};
 
 function buildLayer(){
     let displayLayer=THOUGHTS;
@@ -21,6 +29,47 @@ function relocate(location){
     currentLocation=location;
     currentEntry=0; //reset entry on location change
     htmlDisplay();
+}
+
+function saveTime(storageSize){
+    let saveStatus=document.getElementById("saveStatus");
+    let now=new Date();
+    saveStatus.innerHTML="Last Saved: "+now.toLocaleString()+"<br>Storage Size: "+storageSize;
+
+}
+
+function saveChanges(that){
+    if(EDITABLE){
+        localStorage.setItem("data",JSON.stringify(THOUGHTS));
+        let size=new Blob([localStorage.getItem("data")]).size;
+        let formatSize;
+        if(size<1024){
+            formatSize=size+"B";
+        }else if(size<1024*1024){
+            formatSize=(size/1024).toFixed(2)+"KB";
+        }else if(size<1024*1024*1024){
+            formatSize=(size/(1024*1024)).toFixed(2)+"MB";
+        }else{
+            formatSize=(size/(1024*1024*1024)).toFixed(2)+"GB";
+        }
+        saveTime(formatSize);
+    }
+    
+}
+function toggleEditName(){
+    if(EDITABLE){
+        return "Disable Edit Mode";
+    }else{
+        return "Enable Edit Mode";
+    }
+}
+function setEditModeDisplay(){
+    let editModeStatus=document.getElementById("editModeStatus");
+    if(EDITABLE){
+        editModeStatus.textContent="edit";
+    }else{
+        editModeStatus.textContent="visibility";
+    }
 }
 
 function fitHtmlObject(thing,allTime=false){//fit padding object to window height
@@ -55,6 +104,111 @@ function buildHtml(){
     menuBar.id="menuBar";
     menuBar.className="topBars";
     centralDiv.appendChild(menuBar);
+    //now build each part of menubar
+    let menuTitles=["File","Edit","View","Help"];
+    let menuParts=[
+        ["Import File","Export File","Save Changes"],
+        [toggleEditName()],
+        ["Expand All","Collapse All"],
+        ["About","Documentation"]
+    ]
+    let emptyFunc=function(){};
+    //defining functions
+    function importFile(that){
+        let tempInput=document.createElement("input"); 
+        tempInput.type="file";
+        tempInput.accept=".json,application/json";
+        tempInput.style.display="none";//hidden input
+        document.body.appendChild(tempInput);//hide it in the body
+
+        tempInput.addEventListener("change",function(ev){
+            let reader=new FileReader();
+            reader.readAsText(ev.target.files[0]);
+            reader.onload=function(e){
+                let data=e.target.result;
+                try{
+                    let importedData=JSON.parse(data);
+                    THOUGHTS=importedData;
+                    currentLocation=[];
+                    currentEntry=0;
+                    htmlDisplay();
+                }catch(err){
+                    alert("Error: Invalid JSON file.");
+                }
+                
+            }
+            document.body.removeChild(tempInput);//remove input after use
+        })
+        tempInput.click();//open file dialog
+        
+    }
+    function exportFile(that){
+        let dataJson=JSON.stringify(THOUGHTS);
+        let dataBlob=new Blob([dataJson],{type:"application/json"}); 
+
+        let downloadLink=document.createElement("a");
+        downloadLink.href=URL.createObjectURL(dataBlob);
+        downloadLink.download="cortex_atlas_export.json";
+        downloadLink.click();//click download link
+    }
+    function toggleEditMode(that){
+        //save all changes
+        saveChanges();
+        EDITABLE=!EDITABLE;
+        that.textContent=toggleEditName();
+
+        htmlDisplay();//refresh display
+        setEditModeDisplay();
+        
+    }
+    //no save changes function as it is global
+    let menuFunctions=[
+        [importFile,exportFile,saveChanges],
+        [toggleEditMode],
+        [emptyFunc,emptyFunc],
+        [emptyFunc,emptyFunc]
+    ]
+    for(let i=0;i<menuTitles.length;i++){
+        let menuPart=document.createElement("div");
+        menuPart.className="menuPart";
+        let menuBlock=document.createElement("span");
+        menuBlock.textContent=menuTitles[i];
+        menuPart.appendChild(menuBlock)
+
+        let innerMenuBar=document.createElement("div");
+        innerMenuBar.className="innerMenuBar";
+        for(let j=0; j<menuParts[i].length;j++){ 
+            let menuItem=document.createElement("a");
+            menuItem.textContent=menuParts[i][j];
+            menuItem.href="#";
+            menuItem.onclick=function(ev){
+                ev.preventDefault();
+                //handle menu actions
+                menuFunctions[i][j](this);
+            }
+            innerMenuBar.appendChild(menuItem);
+            
+        }
+        menuPart.appendChild(innerMenuBar);
+        menuBar.appendChild(menuPart);
+    }
+
+
+    
+    //last saved
+    let saveStatus=document.createElement("span");
+    saveStatus.id="saveStatus";
+    saveStatus.classList.add("sideFloating");
+    menuBar.appendChild(saveStatus);
+
+    //view edit modes
+    let editModeStatus=document.createElement("span");
+    editModeStatus.id="editModeStatus";
+    editModeStatus.classList.add("material-symbols-outlined");
+    menuBar.appendChild(editModeStatus);
+    setEditModeDisplay();
+
+
 
     //build top bar
     let topBar=document.createElement("p");
@@ -124,14 +278,14 @@ function replaceWithAttr(obj,obj2){
 
 
 // replacing text with textarea or input
-function replaceInput(textObject, target, targetProp, multiline, type, refresh){
+function replaceInput(textObject, target, targetProp, multiline, type, sideChanges){
     //how the parameters work
     //textObject is the object being turned into an input
     //target is the PART OF THOUGHTS STORAGE that is being altered as well
     //targetProp is the name of the property of target being modified
     //multiline is a boolean: true = <textarea>, false = <input>
     //type is the type of the textObject: eg <p>, <h1>
-    //refresh is a boolean, true means that htmlDisplay() is re-run
+    //sideChanges is changes for other objects
 
     if(EDITABLE && textObject.tagName!="textarea" && textObject.tagName!="input"){
         let tempText=textObject.textContent;
@@ -157,30 +311,34 @@ function replaceInput(textObject, target, targetProp, multiline, type, refresh){
         
 
         newObject.addEventListener("blur",function(){
-            inputToText(this,target,targetProp,multiline,type,refresh)
+            inputToText(this,target,targetProp,multiline,type,sideChanges)
         })
         
     }
     
 }
-function inputToText(inputObject, target, targetProp, multiline, type, refresh){
+function inputToText(inputObject, target, targetProp, multiline, type, sideChanges){
     
     //no need to detect editable as it should always be saved
 
-
-    //target changing
-    target[targetProp]=inputObject.value;
-
     let tempValue=inputObject.value;
+    
+    //target data changing
+    target[targetProp]=tempValue;
+
+     //changes for other objects
+    for(let i=0; i<sideChanges.length; i++){
+        sideChanges[i].textContent=tempValue
+    }
+
+    
     let newObject=document.createElement(type)
 
     newObject.textContent=tempValue
     replaceWithAttr(inputObject,newObject)
     newObject.addEventListener("dblclick",function(){
-        replaceInput(this,target,targetProp,multiline,type,refresh)
+        replaceInput(this,target,targetProp,multiline,type,sideChanges)
     })
-    //finally, if refresh is needed, refresh everything
-    if(refresh)htmlDisplay()
     
     
 }
@@ -190,6 +348,10 @@ function directorySetup(displayLayer){
     let contentRegion=document.getElementById("contentRegion");
     directoryRegion.id="directoryRegion";
     contentRegion.appendChild(directoryRegion);
+
+
+    
+
 
     //display children
     for(let i=0;i<displayLayer.children.length;i++){
@@ -232,6 +394,41 @@ function directorySetup(displayLayer){
             
     }
     fitHtmlObject(directoryRegion);
+
+    //add edit objects
+    if(EDITABLE){
+        let addDirectoryLink=document.createElement("a");
+        let insideIcon=document.createElement("span")
+        insideIcon.classList.add("material-symbols-outlined");
+        insideIcon.textContent="create_new_folder";
+        addDirectoryLink.appendChild(insideIcon);
+        addDirectoryLink.appendChild(document.createTextNode("Add New Directory"));
+        addDirectoryLink.classList.add("directoryEntry");
+        addDirectoryLink.onclick=function(ev){
+            ev.preventDefault();
+            displayLayer.children.push(templateDirectory);
+            //now regenerate
+            htmlDisplay()
+        }
+        directoryRegion.appendChild(addDirectoryLink);
+        directoryRegion.appendChild(document.createElement("br"));
+
+        let addJournalLink=document.createElement("a");
+        let insideJournalIcon=document.createElement("span")
+        insideJournalIcon.classList.add("material-symbols-outlined");
+        insideJournalIcon.textContent="list_alt_add";
+        addJournalLink.appendChild(insideJournalIcon);
+        addJournalLink.appendChild(document.createTextNode("Add New Journal"));
+        addJournalLink.classList.add("directoryEntry");
+        addJournalLink.onclick=function(ev){
+            ev.preventDefault();
+            displayLayer.children.push(templateJournal);
+            //now regenerate
+            htmlDisplay()
+        }
+        directoryRegion.appendChild(addJournalLink);
+    }
+    
     
 }
 
@@ -318,57 +515,62 @@ function journalDisplay(journalRegion){
     for(let i=0;i<currentLocation.length;i++){
         displayLayer=displayLayer.children[currentLocation[i]]; //navigate to the current layer
     }
+    if(displayLayer.children.length==0){
+        return; //no entries to display
+    }else{
+        let entryTitle=document.createElement("h1");
+        entryTitle.textContent=displayLayer.children[currentEntry].title;
+        rightBar.appendChild(entryTitle);
+        let entryContent=document.createElement("p");
+        entryContent.textContent=displayLayer.children[currentEntry].content;
+        rightBar.appendChild(entryContent);
 
-    let entryTitle=document.createElement("h1");
-    entryTitle.textContent=displayLayer.children[currentEntry].title;
-    rightBar.appendChild(entryTitle);
-    let entryContent=document.createElement("p");
-    entryContent.textContent=displayLayer.children[currentEntry].content;
-    rightBar.appendChild(entryContent);
+        //entry content editing
+        entryContent.addEventListener("dblclick",function(){
+            replaceInput(entryContent,displayLayer.children[currentEntry],"content",true,"p",[]);  
+        })
+        //title editing
+        entryTitle.addEventListener("dblclick",function(){
+            replaceInput(entryTitle,displayLayer.children[currentEntry],"title",false,"h1",[leftBar.children[currentEntry]]);
+        })
+        
+        //now give them css
+        entryTitle.classList.add("journalEntryTitle");
+        entryContent.classList.add("journalEntryContent");
+        entryTitle.classList.add("journalText");
+        entryContent.classList.add("journalText");
 
-    //entry content editing
-    entryContent.addEventListener("dblclick",function(){
-        replaceInput(entryContent,displayLayer.children[currentEntry],"content",true,"p",false);  
-    })
-    //title editing
-    entryTitle.addEventListener("dblclick",function(){
-        replaceInput(entryTitle,displayLayer.children[currentEntry],"title",false,"h1",true);
-    })
-    
-    //now give them css
-    entryTitle.classList.add("journalEntryTitle");
-    entryContent.classList.add("journalEntryContent");
-    entryTitle.classList.add("journalText");
-    entryContent.classList.add("journalText");
-
-    //now handle attachment if any
-    let centerBar=journalRegion.children[1];
-    centerBar.innerHTML=""; //clear it first
-    let attachmentType=displayLayer.children[currentEntry].attachment;
-    let attachmentSrc=displayLayer.children[currentEntry].attachmentSrc;
-    if(attachmentType!=null && attachmentSrc!=null){
-        switch(attachmentType){
-            case "img":
-                let imgAttachment=document.createElement("img");
-                imgAttachment.src=attachmentSrc;
-                imgAttachment.classList.add("journalAttachment");
-                centerBar.appendChild(imgAttachment);
-                break;
-            case "audio":
-                let audioAttachment=document.createElement("audio");
-                audioAttachment.src=attachmentSrc;
-                audioAttachment.controls=true;
-                audioAttachment.classList.add("journalAttachment");
-                centerBar.appendChild(audioAttachment);
-                break;
-            case "iframe":
-                let iframeAttachment=document.createElement("iframe");
-                iframeAttachment.src=attachmentSrc;
-                iframeAttachment.classList.add("journalAttachment");
-                centerBar.appendChild(iframeAttachment);
-                break;
+        //now handle attachment if any
+        let centerBar=journalRegion.children[1];
+        centerBar.innerHTML=""; //clear it first
+        let attachmentType=displayLayer.children[currentEntry].attachment;
+        let attachmentSrc=displayLayer.children[currentEntry].attachmentSrc;
+        if(attachmentType!=null && attachmentSrc!=null){
+            switch(attachmentType){
+                case "img":
+                    let imgAttachment=document.createElement("img");
+                    imgAttachment.src=attachmentSrc;
+                    imgAttachment.classList.add("journalAttachment");
+                    centerBar.appendChild(imgAttachment);
+                    break;
+                case "audio":
+                    let audioAttachment=document.createElement("audio");
+                    audioAttachment.src=attachmentSrc;
+                    audioAttachment.controls=true;
+                    audioAttachment.classList.add("journalAttachment");
+                    centerBar.appendChild(audioAttachment);
+                    break;
+                case "iframe":
+                    let iframeAttachment=document.createElement("iframe");
+                    iframeAttachment.src=attachmentSrc;
+                    iframeAttachment.classList.add("journalAttachment");
+                    centerBar.appendChild(iframeAttachment);
+                    break;
+            }
         }
     }
+
+    
 }
 
 
@@ -420,3 +622,9 @@ document.addEventListener("keyup",function(event){
         }
     }
 })
+
+window.addEventListener("beforeunload",function(){
+    saveChanges();
+})
+//initial save time display
+setInterval(saveChanges,10_000);//auto save every 10 seconds

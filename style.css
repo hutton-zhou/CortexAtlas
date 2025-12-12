@@ -1,11 +1,12 @@
 :root{
     --border-style:2px solid white;
+    --half-border:1px solid white;
     --spacing-size:20px;
 }
 *{
     font-size:1em;
     color:white;
-    font-family:'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif
+    font-family:'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
 }
 h1{
     font-size:2em;
@@ -137,4 +138,57 @@ textarea,input{
     field-sizing:content;
     overflow:auto;
     resize:none;
+}
+#menuBar{
+    display:flex;
+    overflow:visible;
+}
+.menuPart{
+    margin:0;
+    padding:0;
+}
+.menuPart:hover{
+    background-color:rgba(255,255,255,0.1);
+    
+}
+.menuPart *{
+    display:inline-block;
+    cursor:pointer;
+    margin:0;
+    padding:calc(var(--spacing-size)/2);
+}
+.innerMenuBar *{
+    display:block;
+    padding:var(--spacing-size);
+    margin:0;
+}
+.innerMenuBar{
+    display:none;
+    position:absolute;
+    margin:0;
+    padding:0;
+}
+.innerMenuBar *{
+    background-color:black;
+}
+
+.innerMenuBar, .innerMenuBar *{
+    border:var(--half-border);
+    background-color:black;
+}
+
+.menuPart:hover .innerMenuBar{
+    display:flex;
+    flex-direction:column;
+}
+.sideFloating{
+    position: absolute;
+    right:var(--spacing-size);
+}
+.barFloating{
+    top:calc(var(--spacing-size)/2);
+    right:0;
+}
+#editModeStatus{
+    position: relative;
 }
