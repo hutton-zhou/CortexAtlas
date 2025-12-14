@@ -36,6 +36,7 @@ body{
     width:100%;
 
     background-color:black;
+    overflow:hidden;
 }
 .topBars{
     text-wrap: nowrap;
@@ -66,9 +67,9 @@ a:not(.journalMenuEntry){
     padding:0;
 }
 #directoryRegion{
+    width:auto;
     overflow-y:auto;
     scrollbar-gutter:stable;
-    width:auto;
     border:var(--border-style);
     margin:0;
     padding:var(--spacing-size);
@@ -191,4 +192,13 @@ textarea,input{
 }
 #editModeStatus{
     position: relative;
+}
+
+.sideIcon{
+    text-decoration:none;
+    color:darkgrey;
+    cursor:pointer;
+}
+.sideIcon:hover{
+    color:white;
 }

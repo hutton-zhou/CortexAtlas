@@ -28,7 +28,7 @@ function buildLayer(){
 function relocate(location){
     currentLocation=location;
     currentEntry=0; //reset entry on location change
-    htmlDisplay();
+    htmlDisplay({});
 }
 
 function saveTime(storageSize){
@@ -131,7 +131,7 @@ function buildHtml(){
                     THOUGHTS=importedData;
                     currentLocation=[];
                     currentEntry=0;
-                    htmlDisplay();
+                    htmlDisplay({});
                 }catch(err){
                     alert("Error: Invalid JSON file.");
                 }
@@ -157,7 +157,7 @@ function buildHtml(){
         EDITABLE=!EDITABLE;
         that.textContent=toggleEditName();
 
-        htmlDisplay();//refresh display
+        htmlDisplay({});//refresh display
         setEditModeDisplay();
         
     }
@@ -224,7 +224,7 @@ function buildHtml(){
     
 }
 
-function htmlDisplay(){
+function htmlDisplay(scrollPositions){
     //first we update the top bar location
     let tempTopBarLink;
     let tempLayer=THOUGHTS;
@@ -258,6 +258,20 @@ function htmlDisplay(){
     else if(displayLayer.type==tJournal){
         journalSetup(displayLayer)
     }
+
+    
+    //save scroll positions
+    Object.keys(scrollPositions).forEach(function(key){
+        let tempObj=document.getElementById(key);
+        requestAnimationFrame(function(){
+            if(tempObj!=null){
+                tempObj.scrollTo(0,scrollPositions[key]);
+            }
+        })
+        
+    })
+    
+   
 }
 function replaceWithAttr(obj,obj2){
     if(obj!=null){//guarantee object wasn't hidden or removed
@@ -278,7 +292,7 @@ function replaceWithAttr(obj,obj2){
 
 
 // replacing text with textarea or input
-function replaceInput(textObject, target, targetProp, multiline, type, sideChanges){
+function replaceInput(textObject, target, targetProp, multiline, type, sideChanges, specialFolderName=false){
     //how the parameters work
     //textObject is the object being turned into an input
     //target is the PART OF THOUGHTS STORAGE that is being altered as well
@@ -289,6 +303,7 @@ function replaceInput(textObject, target, targetProp, multiline, type, sideChang
 
     if(EDITABLE && textObject.tagName!="textarea" && textObject.tagName!="input"){
         let tempText=textObject.textContent;
+        if(specialFolderName)tempText=target[targetProp] //use stored name to avoid broken
         let newObject;
         if(multiline){
             newObject=document.createElement("textarea")
@@ -302,7 +317,6 @@ function replaceInput(textObject, target, targetProp, multiline, type, sideChang
         
         newObject.addEventListener("keydown",function(ev){
             if(KEYS.includes("Shift") || ev.key!="Enter"){
-
             }else{
                 ev.preventDefault();
                 this.blur()//if not shift-enter, no new lines
@@ -311,13 +325,18 @@ function replaceInput(textObject, target, targetProp, multiline, type, sideChang
         
 
         newObject.addEventListener("blur",function(){
-            inputToText(this,target,targetProp,multiline,type,sideChanges)
+            
+
+            
+            inputToText(this,target,targetProp,multiline,type,sideChanges,specialFolderName)
+            
+            
         })
         
     }
     
 }
-function inputToText(inputObject, target, targetProp, multiline, type, sideChanges){
+function inputToText(inputObject, target, targetProp, multiline, type, sideChanges, specialFolderName=false){
     
     //no need to detect editable as it should always be saved
 
@@ -331,14 +350,18 @@ function inputToText(inputObject, target, targetProp, multiline, type, sideChang
         sideChanges[i].textContent=tempValue
     }
 
-    
-    let newObject=document.createElement(type)
+    if(specialFolderName){
+        htmlDisplay({"directoryRegion":document.getElementById("directoryRegion").scrollTop});//refresh entire display to avoid broken links
+    }else{
+        let newObject=document.createElement(type)
 
-    newObject.textContent=tempValue
-    replaceWithAttr(inputObject,newObject)
-    newObject.addEventListener("dblclick",function(){
-        replaceInput(this,target,targetProp,multiline,type,sideChanges)
-    })
+        newObject.textContent=tempValue
+        replaceWithAttr(inputObject,newObject)
+        newObject.addEventListener("dblclick",function(){
+            replaceInput(this,target,targetProp,multiline,type,sideChanges)
+        })
+    }
+    
     
     
 }
@@ -389,11 +412,38 @@ function directorySetup(displayLayer){
             relocate(currentLocation);//relocation to this layer
         }
         label.classList.add("directoryEntry");
+        //now add edit functionality
+        if(EDITABLE){
+            let deleteIcon=document.createElement("span");
+            deleteIcon.classList.add("material-symbols-outlined","sideIcon");
+            deleteIcon.textContent="delete";
+            deleteIcon.onclick=function(ev){
+                ev.preventDefault();
+                ev.stopPropagation();//stop bubbling up
+                if(confirm("Are you sure you want to delete '"+displayLayer.children[i].title+"'?")){
+                    displayLayer.children.splice(i,1);
+                    //now regenerate
+                    htmlDisplay({"directoryRegion":directoryRegion.scrollTop})
+                }
+            }
+
+            label.appendChild(deleteIcon);
+            //title editing
+            let titleEditIcon=document.createElement("span");
+            titleEditIcon.classList.add("material-symbols-outlined","sideIcon");
+            titleEditIcon.textContent="edit";
+            titleEditIcon.onclick=function(ev){
+                ev.preventDefault();
+                ev.stopPropagation();//stop bubbling up
+                replaceInput(label,displayLayer.children[i],"title",false,"a",[],true);
+            }
+            label.appendChild(titleEditIcon);
+        }
+
         directoryRegion.appendChild(label);
         directoryRegion.appendChild(document.createElement("br"));
             
     }
-    fitHtmlObject(directoryRegion);
 
     //add edit objects
     if(EDITABLE){
@@ -406,9 +456,9 @@ function directorySetup(displayLayer){
         addDirectoryLink.classList.add("directoryEntry");
         addDirectoryLink.onclick=function(ev){
             ev.preventDefault();
-            displayLayer.children.push(templateDirectory);
+            displayLayer.children.push(structuredClone(templateDirectory));
             //now regenerate
-            htmlDisplay()
+            htmlDisplay({"directoryRegion":directoryRegion.scrollTop})
         }
         directoryRegion.appendChild(addDirectoryLink);
         directoryRegion.appendChild(document.createElement("br"));
@@ -422,12 +472,14 @@ function directorySetup(displayLayer){
         addJournalLink.classList.add("directoryEntry");
         addJournalLink.onclick=function(ev){
             ev.preventDefault();
-            displayLayer.children.push(templateJournal);
+            displayLayer.children.push(structuredClone(templateJournal));
             //now regenerate
-            htmlDisplay()
+            htmlDisplay({"directoryRegion":directoryRegion.scrollTop})
         }
         directoryRegion.appendChild(addJournalLink);
     }
+    
+    fitHtmlObject(directoryRegion);
     
     
 }
@@ -475,7 +527,7 @@ function journalSetup(displayLayer){
         newJournalEntry(leftBar,"New Journal Entry",displayLayer.children.length,function(){
             displayLayer.children.push({...templateEntry})
             //now regenerate
-            htmlDisplay()
+            htmlDisplay({"journalLeftBar":leftBar.scrollTop})
         },"add")
     }
     
@@ -518,6 +570,28 @@ function journalDisplay(journalRegion){
     if(displayLayer.children.length==0){
         return; //no entries to display
     }else{
+        if(EDITABLE){
+            //add delete button
+            let deleteIcon=document.createElement("span");
+            deleteIcon.classList.add("material-symbols-outlined","sideIcon");
+            deleteIcon.textContent="delete";
+            deleteIcon.onclick=function(ev){
+                ev.preventDefault();
+                if(confirm("Are you sure you want to delete '"+displayLayer.children[currentEntry].title+"'?")){
+                    displayLayer.children.splice(currentEntry,1);
+                    if(currentEntry>=displayLayer.children.length){
+                        currentEntry=displayLayer.children.length-1; //move to last entry
+                    }
+                    if(currentEntry<0){
+                        currentEntry=0; //no entries left
+                    }
+                    htmlDisplay({"journalLeftBar":leftBar.scrollTop});//refresh display
+                }
+            }
+            rightBar.appendChild(deleteIcon);
+        }
+
+
         let entryTitle=document.createElement("h1");
         entryTitle.textContent=displayLayer.children[currentEntry].title;
         rightBar.appendChild(entryTitle);
@@ -576,7 +650,7 @@ function journalDisplay(journalRegion){
 
 //html display
 buildHtml();
-htmlDisplay();
+htmlDisplay({});
 
 window.onresize=function(){
     let fittableObjects=document.getElementsByClassName("fittable");

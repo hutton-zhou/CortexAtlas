@@ -1,6 +1,4 @@
 # TODO
-- Create delete functionality
 - Create functionality for middle bar
-- Add edit functionality, and edit/view modes
-- Add keyboard shortcuts and a top menubar (File, Edit, View)
-- Maybe add further functionality like finding/search
+- Add edit functionality like Find/Replace, Copy/Cut/Paste, and Undo/Redo
+- Finish the rest of the top menubar
