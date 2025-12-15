@@ -15,6 +15,10 @@ Properties:
 - attachmentSrc: The source URL for the attachment (only for entries)
 */
 
+//this document contains the legacy THOUGHTS data structure, before moving to edit functionality.
+//the only things important are the "current types"
+//REMEMBER: DELETE ALL YOUR OWN THOUGHTS BEFORE PUBLISHING THE WEB APP
+
 let THOUGHTS={
     type:tDirectory,
     title:"Root",
