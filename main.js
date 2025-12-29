@@ -379,6 +379,67 @@ function directorySetup(displayLayer){
     //display children
     for(let i=0;i<displayLayer.children.length;i++){
         let label=document.createElement("a");
+        //updown arrows
+        if(EDITABLE){
+            let vertiBar=document.createElement("div");
+            vertiBar.classList.add("vertiBar");
+            let upArrow=document.createElement("span");
+            upArrow.classList.add("material-symbols-outlined","sideIcon");
+            upArrow.textContent="keyboard_arrow_up";
+            let downArrow=document.createElement("span");
+            downArrow.classList.add("material-symbols-outlined","sideIcon");
+            downArrow.textContent="keyboard_arrow_down";
+            vertiBar.appendChild(upArrow);
+            vertiBar.appendChild(downArrow);
+            label.appendChild(vertiBar);
+
+            let boostedVertiBar=document.createElement("div");
+            boostedVertiBar.classList.add("vertiBar");
+            let boostUpArrow=document.createElement("span");
+            boostUpArrow.classList.add("material-symbols-outlined","sideIcon");
+            boostUpArrow.textContent="keyboard_double_arrow_up";
+            let boostDownArrow=document.createElement("span");
+            boostDownArrow.classList.add("material-symbols-outlined","sideIcon");
+            boostDownArrow.textContent="keyboard_double_arrow_down";
+            boostedVertiBar.appendChild(boostUpArrow);
+            boostedVertiBar.appendChild(boostDownArrow);
+            label.appendChild(boostedVertiBar);
+
+            //now add functionality
+            upArrow.onclick=function(ev){
+                ev.preventDefault();
+                ev.stopPropagation();
+                if(i>0){
+                    let tempInfo=displayLayer.children.splice(i,1)[0];
+                    displayLayer.children.splice(i-1,0,tempInfo);
+
+                    htmlDisplay({"directoryRegion":directoryRegion.scrollTop});
+                }
+            }
+            downArrow.onclick=function(ev){
+                ev.preventDefault();
+                ev.stopPropagation();
+                if(i<displayLayer.children.length-1){
+                    let tempInfo=displayLayer.children.splice(i,1)[0];
+                    displayLayer.children.splice(i+1,0,tempInfo);
+                    htmlDisplay({"directoryRegion":directoryRegion.scrollTop});
+                }
+            }
+            boostUpArrow.onclick=function(ev){
+                ev.preventDefault();
+                ev.stopPropagation();
+                let tempInfo=displayLayer.children.splice(i,1)[0];
+                displayLayer.children.splice(0,0,tempInfo);
+                htmlDisplay({"directoryRegion":0})
+            }
+            boostDownArrow.onclick=function(ev){
+                ev.preventDefault();
+                ev.stopPropagation();
+                let tempInfo=displayLayer.children.splice(i,1)[0];
+                displayLayer.children.push(tempInfo);
+                htmlDisplay({"directoryRegion":Number.MAX_VALUE});
+            }
+        }
 
         //adding icon
         let tempIcon=document.createElement("span")
