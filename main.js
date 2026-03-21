@@ -292,18 +292,15 @@ function replaceWithAttr(obj,obj2){
 
 
 // replacing text with textarea or input
-function replaceInput(textObject, target, targetProp, multiline, type, sideChanges, specialFolderName=false){
+function replaceInput(textObject, target, targetProp, multiline){
     //how the parameters work
     //textObject is the object being turned into an input
     //target is the PART OF THOUGHTS STORAGE that is being altered as well
     //targetProp is the name of the property of target being modified
     //multiline is a boolean: true = <textarea>, false = <input>
-    //type is the type of the textObject: eg <p>, <h1>
-    //sideChanges is changes for other objects
 
     if(EDITABLE && textObject.tagName!="textarea" && textObject.tagName!="input"){
-        let tempText=textObject.textContent;
-        if(specialFolderName)tempText=target[targetProp] //use stored name to avoid broken
+        let tempText=target[targetProp] //use stored name to avoid broken
         let newObject;
         if(multiline){
             newObject=document.createElement("textarea")
@@ -325,18 +322,13 @@ function replaceInput(textObject, target, targetProp, multiline, type, sideChang
         
 
         newObject.addEventListener("blur",function(){
-            
-
-            
-            inputToText(this,target,targetProp,multiline,type,sideChanges,specialFolderName)
-            
-            
+            inputToText(this,target,targetProp)//no multiline needed
         })
         
     }
     
 }
-function inputToText(inputObject, target, targetProp, multiline, type, sideChanges, specialFolderName=false){
+function inputToText(inputObject, target, targetProp){
     
     //no need to detect editable as it should always be saved
 
@@ -344,24 +336,11 @@ function inputToText(inputObject, target, targetProp, multiline, type, sideChang
     
     //target data changing
     target[targetProp]=tempValue;
-
-     //changes for other objects
-    for(let i=0; i<sideChanges.length; i++){
-        sideChanges[i].textContent=tempValue
+    if(document.getElementById("directoryRegion")!=null){
+        htmlDisplay({"directoryRegion":document.getElementById("directoryRegion").scrollTop})
+    }else if(document.getElementById("journalLeftBar")!=null){
+        htmlDisplay({"journalLeftBar":document.getElementById("journalLeftBar").scrollTop})
     }
-
-    if(specialFolderName){
-        htmlDisplay({"directoryRegion":document.getElementById("directoryRegion").scrollTop});//refresh entire display to avoid broken links
-    }else{
-        let newObject=document.createElement(type)
-
-        newObject.textContent=tempValue
-        replaceWithAttr(inputObject,newObject)
-        newObject.addEventListener("dblclick",function(){
-            replaceInput(this,target,targetProp,multiline,type,sideChanges)
-        })
-    }
-    
     
     
 }
@@ -381,64 +360,9 @@ function directorySetup(displayLayer){
         let label=document.createElement("a");
         //updown arrows
         if(EDITABLE){
-            let vertiBar=document.createElement("div");
-            vertiBar.classList.add("vertiBar");
-            let upArrow=document.createElement("span");
-            upArrow.classList.add("material-symbols-outlined","sideIcon");
-            upArrow.textContent="keyboard_arrow_up";
-            let downArrow=document.createElement("span");
-            downArrow.classList.add("material-symbols-outlined","sideIcon");
-            downArrow.textContent="keyboard_arrow_down";
-            vertiBar.appendChild(upArrow);
-            vertiBar.appendChild(downArrow);
-            label.appendChild(vertiBar);
-
-            let boostedVertiBar=document.createElement("div");
-            boostedVertiBar.classList.add("vertiBar");
-            let boostUpArrow=document.createElement("span");
-            boostUpArrow.classList.add("material-symbols-outlined","sideIcon");
-            boostUpArrow.textContent="keyboard_double_arrow_up";
-            let boostDownArrow=document.createElement("span");
-            boostDownArrow.classList.add("material-symbols-outlined","sideIcon");
-            boostDownArrow.textContent="keyboard_double_arrow_down";
-            boostedVertiBar.appendChild(boostUpArrow);
-            boostedVertiBar.appendChild(boostDownArrow);
-            label.appendChild(boostedVertiBar);
-
-            //now add functionality
-            upArrow.onclick=function(ev){
-                ev.preventDefault();
-                ev.stopPropagation();
-                if(i>0){
-                    let tempInfo=displayLayer.children.splice(i,1)[0];
-                    displayLayer.children.splice(i-1,0,tempInfo);
-
-                    htmlDisplay({"directoryRegion":directoryRegion.scrollTop});
-                }
-            }
-            downArrow.onclick=function(ev){
-                ev.preventDefault();
-                ev.stopPropagation();
-                if(i<displayLayer.children.length-1){
-                    let tempInfo=displayLayer.children.splice(i,1)[0];
-                    displayLayer.children.splice(i+1,0,tempInfo);
-                    htmlDisplay({"directoryRegion":directoryRegion.scrollTop});
-                }
-            }
-            boostUpArrow.onclick=function(ev){
-                ev.preventDefault();
-                ev.stopPropagation();
-                let tempInfo=displayLayer.children.splice(i,1)[0];
-                displayLayer.children.splice(0,0,tempInfo);
-                htmlDisplay({"directoryRegion":0})
-            }
-            boostDownArrow.onclick=function(ev){
-                ev.preventDefault();
-                ev.stopPropagation();
-                let tempInfo=displayLayer.children.splice(i,1)[0];
-                displayLayer.children.push(tempInfo);
-                htmlDisplay({"directoryRegion":Number.MAX_VALUE});
-            }
+            let tempUpDownKeys=upDownKeys(displayLayer,i);
+            label.appendChild(tempUpDownKeys[0])
+            label.appendChild(tempUpDownKeys[1])
         }
 
         //adding icon
@@ -544,8 +468,90 @@ function directorySetup(displayLayer){
     
     
 }
+function upDownKeys(displayLayer,i){
+    
 
-function newJournalEntry(displayBar,name,i,specialFunc=null,specialSymbol=null){
+    let vertiBar=document.createElement("div");
+    vertiBar.classList.add("vertiBar");
+    let upArrow=document.createElement("span");
+    upArrow.classList.add("material-symbols-outlined","sideIcon");
+    upArrow.textContent="keyboard_arrow_up";
+    let downArrow=document.createElement("span");
+    downArrow.classList.add("material-symbols-outlined","sideIcon");
+    downArrow.textContent="keyboard_arrow_down";
+    vertiBar.appendChild(upArrow);
+    vertiBar.appendChild(downArrow);
+
+    let boostedVertiBar=document.createElement("div");
+    boostedVertiBar.classList.add("vertiBar");
+    let boostUpArrow=document.createElement("span");
+    boostUpArrow.classList.add("material-symbols-outlined","sideIcon");
+    boostUpArrow.textContent="keyboard_double_arrow_up";
+    let boostDownArrow=document.createElement("span");
+    boostDownArrow.classList.add("material-symbols-outlined","sideIcon");
+    boostDownArrow.textContent="keyboard_double_arrow_down";
+    boostedVertiBar.appendChild(boostUpArrow);
+    boostedVertiBar.appendChild(boostDownArrow);
+
+    //temporary function
+    function scrollToPosTemp(target=null){
+        let tempObject;
+        let tempId;
+        if(document.getElementById("directoryRegion")!=null){
+            tempObject=document.getElementById("directoryRegion")
+            tempId="directoryRegion"
+        }else if(document.getElementById("journalLeftBar")!=null){
+            tempObject=document.getElementById("journalLeftBar")
+            tempId="journalLeftBar"
+        }
+        let tempTarg;
+        if(target==null){
+            tempTarg=tempObject.scrollTop
+        }else{
+            tempTarg=target
+        }
+        htmlDisplay({tempId:tempTarg})
+    }
+
+    //now add functionality
+    upArrow.onclick=function(ev){
+        ev.preventDefault();
+        ev.stopPropagation();
+        if(i>0){
+            let tempInfo=displayLayer.children.splice(i,1)[0];
+            displayLayer.children.splice(i-1,0,tempInfo);
+
+            scrollToPosTemp()
+        }
+    }
+    downArrow.onclick=function(ev){
+        ev.preventDefault();
+        ev.stopPropagation();
+        if(i<displayLayer.children.length-1){
+            let tempInfo=displayLayer.children.splice(i,1)[0];
+            displayLayer.children.splice(i+1,0,tempInfo);
+            scrollToPosTemp()
+        }
+    }
+    boostUpArrow.onclick=function(ev){
+        ev.preventDefault();
+        ev.stopPropagation();
+        let tempInfo=displayLayer.children.splice(i,1)[0];
+        displayLayer.children.splice(0,0,tempInfo);
+        scrollToPosTemp(0)
+    }
+    boostDownArrow.onclick=function(ev){
+        ev.preventDefault();
+        ev.stopPropagation();
+        let tempInfo=displayLayer.children.splice(i,1)[0];
+        displayLayer.children.push(tempInfo);
+        scrollToPosTemp(Number.MAX_VALUE)
+    }
+
+    return [vertiBar,boostedVertiBar];
+}
+
+function newJournalEntry(displayBar,displayLayer,name,i,specialFunc=null,specialSymbol=null){
     let entryLabel=document.createElement("a");
     if(specialSymbol!=null){
         let tempSymbol=document.createElement("span")
@@ -553,8 +559,19 @@ function newJournalEntry(displayBar,name,i,specialFunc=null,specialSymbol=null){
         tempSymbol.classList.add("material-symbols-outlined")
         entryLabel.appendChild(tempSymbol)
     }
+    if(specialFunc==null){
+        //updown arrows
+        if(EDITABLE){
+            let tempUpDownKeys=upDownKeys(displayLayer,i);
+            entryLabel.appendChild(tempUpDownKeys[0])
+            entryLabel.appendChild(tempUpDownKeys[1])
+            entryLabel.classList.add("journalMenuEntryNoPadding")
+        }
+    }
     entryLabel.appendChild(document.createTextNode(name))
     entryLabel.classList.add("journalMenuEntry");
+    
+
     if(specialFunc!=null){
         entryLabel.onclick=specialFunc
     }else{
@@ -582,10 +599,10 @@ function journalSetup(displayLayer){
     fitHtmlObject(leftBar);
     //populate left bar
     for(let i=0;i<displayLayer.children.length;i++){
-        newJournalEntry(leftBar,displayLayer.children[i].title,i)
+        newJournalEntry(leftBar,displayLayer,displayLayer.children[i].title,i)
     }
     if(EDITABLE){
-        newJournalEntry(leftBar,"New Journal Entry",displayLayer.children.length,function(){
+        newJournalEntry(leftBar,displayLayer,"New Journal Entry",displayLayer.children.length,function(){
             displayLayer.children.push({...templateEntry})
             //now regenerate
             htmlDisplay({"journalLeftBar":leftBar.scrollTop})
@@ -729,7 +746,7 @@ window.onresize=function(){
 }
 
 document.addEventListener("keydown",function(event){
-    if(event.key=="ArrowUp" || event.key=="ArrowDown"){
+    if((event.key=="ArrowUp" || event.key=="ArrowDown") && document.activeElement.tagName!="INPUT" && document.activeElement.tagName!="TEXTAREA"){
         let displayLayer=buildLayer();
         if(displayLayer.type==tJournal){
             if(event.key=="ArrowUp"){

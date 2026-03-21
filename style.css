@@ -116,6 +116,7 @@ a:not(.journalMenuEntry){
     background-color:black;
     display:block;
 }
+
 .journalMenuEntrySelected{
     background-color:rgba(0,255,255,0.2);
 }
